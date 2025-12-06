@@ -1,6 +1,17 @@
 terraform {
   required_version = ">= 1.3"
 
+  # --------------------------------------------------------------------
+  # BACKEND CONFIGURATION (Added)
+  # --------------------------------------------------------------------
+  backend "s3" {
+    bucket         = "terraform-state-f3clgm"        # <-- REPLACE THIS
+    key            = "eks-cluster/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "terraform-locks-f3clgm" # <-- REPLACE THIS
+    encrypt        = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -56,7 +67,7 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   # ----------------------------------------------------------------
-  # IAM User Access: Give user omarmm full Kubernetes admin access
+  # IAM User Access
   # ----------------------------------------------------------------
   access_entries = {
     eks-admin-user = {
@@ -74,7 +85,7 @@ module "eks" {
   }
 
   # ----------------------------------------------------------------
-  # Node Group: Running in one AZ (us-east-1a)
+  # Node Group
   # ----------------------------------------------------------------
   eks_managed_node_groups = {
     workers = {
