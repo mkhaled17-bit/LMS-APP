@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.3"
 
   # --------------------------------------------------------------------
-  # BACKEND CONFIGURATION (Added)
+  # BACKEND CONFIGURATION 
   # --------------------------------------------------------------------
   backend "s3" {
     bucket         = "terraform-state-f3clgm"        # <-- REPLACE THIS
