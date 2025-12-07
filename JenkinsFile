@@ -1,11 +1,6 @@
 pipeline {
     agent any
-
-    // 1. Dropdown menu to choose the action
-    parameters {
-        choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Choose Action')
-    }
-
+    
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
     }
