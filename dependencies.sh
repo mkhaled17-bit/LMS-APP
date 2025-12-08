@@ -2,11 +2,9 @@
 set -e
 
 # --- CONFIGURATION ---
-# نستخدم القيم من الـ Environment Variables لو موجودة، وإلا نستخدم القيم الافتراضية
 CLUSTER_NAME="${CLUSTER_NAME:-my-eks-cluster-v2}"
 REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 
-# جلب رقم الحساب ديناميكياً بدلاً من كتابته يدوياً
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 echo "=== Configuration ==="
@@ -16,10 +14,12 @@ echo "Account ID: $ACCOUNT_ID"
 echo "Kubeconfig: $KUBECONFIG"
 
 echo "=== Installing OS dependencies ==="
-# كشف نوع نظام التشغيل لحل مشكلة apt-get not found
+
+# --- FIX: Added --allowerasing to resolve curl conflict ---
 if command -v dnf &> /dev/null; then
     sudo dnf update -y
-    sudo dnf install -y curl unzip jq tar
+    # هنا التعديل: ضيفنا --allowerasing عشان يحل مشكلة curl-minimal
+    sudo dnf install -y --allowerasing curl unzip jq tar
 elif command -v yum &> /dev/null; then
     sudo yum update -y
     sudo yum install -y curl unzip jq tar
@@ -70,7 +70,6 @@ fi
 
 # --- Update kubeconfig ---
 echo "=== Updating kubeconfig for EKS cluster ==="
-# نستخدم الأمر بدون تحديد مسار، لأنه سيعتمد على متغير البيئة KUBECONFIG القادم من Jenkins
 aws eks update-kubeconfig --name $CLUSTER_NAME --region $REGION
 
 # --- Verify access ---
@@ -86,7 +85,6 @@ echo "=== Configuring EBS CSI IAM Policy ==="
 POLICY_NAME="AmazonEBSCSIPolicy-$CLUSTER_NAME"
 POLICY_ARN="arn:aws:iam::$ACCOUNT_ID:policy/$POLICY_NAME"
 
-# إنشاء ملف السياسة
 cat <<JSON > ebs-csi-policy.json
 {
   "Version": "2012-10-17",
@@ -111,7 +109,6 @@ cat <<JSON > ebs-csi-policy.json
   ]
 JSON
 
-# التحقق مما إذا كانت السياسة موجودة، إذا لم تكن موجودة قم بإنشائها
 if aws iam get-policy --policy-arn $POLICY_ARN >/dev/null 2>&1; then
     echo "Policy $POLICY_NAME already exists."
 else
