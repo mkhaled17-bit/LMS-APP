@@ -2,9 +2,11 @@
 set -e
 
 # --- CONFIGURATION ---
+# القراءة من Environment Variables (المتغيرات اللي بتيجي من Jenkins)
 CLUSTER_NAME="${CLUSTER_NAME:-my-eks-cluster-v2}"
 REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 
+# جلب رقم الحساب (Account ID) ديناميكياً
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 echo "=== Configuration ==="
@@ -14,23 +16,24 @@ echo "Account ID: $ACCOUNT_ID"
 echo "Kubeconfig: $KUBECONFIG"
 
 echo "=== Installing OS dependencies ==="
-
-# --- FIX: Added --allowerasing to resolve curl conflict ---
+# كشف نوع نظام التشغيل (Amazon Linux, Ubuntu, etc.)
 if command -v dnf &> /dev/null; then
     sudo dnf update -y
-    # هنا التعديل: ضيفنا --allowerasing عشان يحل مشكلة curl-minimal
-    sudo dnf install -y --allowerasing curl unzip jq tar
+    # التعديل النهائي: حذفنا 'curl' لأن النسخة الـ minimal الموجودة تكفي
+    sudo dnf install -y unzip jq tar
 elif command -v yum &> /dev/null; then
     sudo yum update -y
-    sudo yum install -y curl unzip jq tar
+    sudo yum install -y unzip jq tar
 elif command -v apt-get &> /dev/null; then
     sudo apt-get update -y
+    # هنا لازم نسطب curl لو ubuntu مكنش فيه
     sudo apt-get install -y curl unzip jq
 else
-    echo "Unknown package manager. Please install curl, unzip, and jq manually."
+    echo "Unknown package manager. Please install dependencies manually."
+    exit 1
 fi
 
-# --- AWS CLI v2 ---
+# --- AWS CLI v2 (تأكد من تسطيبها لو مش موجودة) ---
 if ! command -v aws &> /dev/null; then
     echo "Installing AWS CLI v2..."
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -107,6 +110,7 @@ cat <<JSON > ebs-csi-policy.json
       "Resource": "*"
     }
   ]
+}
 JSON
 
 if aws iam get-policy --policy-arn $POLICY_ARN >/dev/null 2>&1; then
