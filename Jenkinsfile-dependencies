@@ -1,0 +1,102 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1'
+        CLUSTER_NAME = 'my-eks-cluster-v2'
+        KUBECONFIG = "${env.WORKSPACE}/kubeconfig"
+    }
+
+    stages {
+
+        stage('Fetch dep.sh from GitHub') {
+            steps {
+                echo "Downloading dep.sh from GitHub..."
+                sh 'curl -o dep.sh https://raw.githubusercontent.com/mkhaled17-bit/LMS-APP/master/dependencies.sh'
+                sh 'chmod +x dep.sh'
+            }
+        }
+
+        stage('Configure AWS Credentials') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh '''
+                        echo "AWS credentials are set in environment"
+                        aws --version
+                    '''
+                }
+            }
+        }
+
+        stage('Install/Update AWS CLI v2, kubectl, helm') {
+            steps {
+                sh '''
+                    # --- Install AWS CLI v2 ---
+                    if command -v aws &> /dev/null; then
+                        AWS_VER=$(aws --version | awk '{print $1}' | cut -d/ -f2 | cut -d. -f1)
+                        if [ "$AWS_VER" -lt 2 ]; then
+                            echo "Updating AWS CLI to v2..."
+                            sudo apt-get remove -y awscli
+                            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                            unzip awscliv2.zip
+                            sudo ./aws/install --update
+                        fi
+                    else
+                        echo "Installing AWS CLI v2..."
+                        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                        unzip awscliv2.zip
+                        sudo ./aws/install
+                    fi
+
+                    # --- Install kubectl ---
+                    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                    chmod +x kubectl
+                    sudo mv kubectl /usr/local/bin/
+
+                    # --- Install Helm ---
+                    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+                '''
+            }
+        }
+
+        stage('Update kubeconfig') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh '''
+                        echo "Updating kubeconfig for EKS cluster..."
+                        aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION --kubeconfig $KUBECONFIG
+                        kubectl get nodes
+                    '''
+                }
+            }
+        }
+
+        stage('Run dep.sh') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh './dep.sh'
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo "✅ Pipeline finished."
+            echo KUBECONFIG
+        }
+        failure {
+            echo "❌ dep.sh execution failed!"
+        }
+    }
+}
