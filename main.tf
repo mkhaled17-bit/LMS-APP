@@ -4,13 +4,13 @@ terraform {
   # ------------------------------------------------------------------
   # BACKEND CONFIGURATION 
   # -------------------------------------------------------------------
-  backend "s3" {
-    bucket         = "terraform-state-f3clgm"        # <-- REPLACE THIS
-    key            = "eks-cluster/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-locks-f3clgm" # <-- REPLACE THIS
-    encrypt        = true
-  }
+  # backend "s3" {
+  #  bucket         = "terraform-state-f3clgm"        # <-- REPLACE THIS
+  # key            = "eks-cluster/terraform.tfstate"
+  # region         = "us-east-1"
+  # dynamodb_table = "terraform-locks-f3clgm" # <-- REPLACE THIS
+  # encrypt        = true
+  # }
 
   required_providers {
     aws = {
@@ -58,7 +58,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.8.4"
 
-  cluster_name    = "my-eks-cluster-v2"
+  cluster_name    = "my-eks-cluster"
   cluster_version = "1.30"
 
   vpc_id     = module.vpc.vpc_id
